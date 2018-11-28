@@ -9,7 +9,6 @@ public class sftpServer
 {
     private static final double LOSS_RATE = 0.2;
     private static final int AVERAGE_DELAY = 100; //milliseconds
-
     public static void main(String[] args) throws Exception
     {
         int port = 9093;
@@ -20,35 +19,53 @@ public class sftpServer
         //set Timeout
         while(true)
         {
-            int seq = 0;
-            int ack = 0;
-            //Receiving a message
-            DatagramPacket request = new DatagramPacket(new byte[512], 512);
-            server.receive(request);
-
-            DatagramPacket ackPacket = new DatagramPacket(new byte[1], 1);
-            server.receive(ackPacket)
-            ack = Integer.parseInt(ackPacket.getData());
-            seq = ack;
-
-            printData(request);
-
-            if(random.nextDouble() < LOSS_RATE)
+            PrintWriter clear = new PrintWriter("outputfile.txt");
+            clear.print("");
+            clear.close();
+            while(true)
             {
-                System.out.println("Reply not sent.");
-                continue;
+                int seq = 0;
+                int ack = 0;
+
+                //Receiving a message
+                DatagramPacket request = new DatagramPacket(new byte[512], 512);
+                server.receive(request);
+
+                DatagramPacket ackPacket = new DatagramPacket(new byte[1], 1);
+                server.receive(ackPacket);
+                byte[] ackBytes = ackPacket.getData();
+                System.out.println("Byte size: " + String.valueOf(ackBytes.length));
+                ByteArrayInputStream bais = new ByteArrayInputStream(ackBytes);
+                InputStreamReader isr = new InputStreamReader(bais);
+                BufferedReader br = new BufferedReader(isr);
+                String ackSting = br.readLine();
+                ack = Integer.parseInt(ackSting);
+
+                seq = ack;
+
+                if(random.nextDouble() < LOSS_RATE)
+                {
+                    System.out.println("Reply not sent.");
+                    continue;
+                }
+
+                printData(request);
+
+                Thread.sleep((int) (random.nextDouble()*2*AVERAGE_DELAY));
+
+                InetAddress clientHost = request.getAddress();
+                int clientPort = request.getPort();
+
+                byte[] seqBytes = Integer.toString(seq).getBytes();
+                DatagramPacket seqPacket = new DatagramPacket(seqBytes , 1, clientHost, clientPort);
+                server.send(seqPacket);
+                System.out.println("Reply sent.");
+
+                if(request.getLength() != 512){
+                    System.out.println("Full file received");
+                    break;
+                }
             }
-
-            Thread.sleep((int) (random.nextDouble()*2*AVERAGE_DELAY));
-
-            InetAddress clientHost = request.getAddress();
-            int clientPort = request.getPort();
-
-
-            byte[] seqBytes = seq.toString().getBytes();
-            DatagramPacket seqPacket = new DatagramPacket(seqBytes , 1, clientHost, clientPort);
-            server.send(seqPacket);
-            System.out.println("Reply sent.");
         }
     }
 
@@ -58,7 +75,13 @@ public class sftpServer
     {
         // Obtain references to the packet's array of bytes.
         byte[] buf = request.getData();
-        System.out.println(buf);
+        String val = new String(buf);
+        System.out.println(val);
+        FileWriter fw = new FileWriter("outputfile.txt", true);
+        BufferedWriter bw = new BufferedWriter(fw);
+        PrintWriter out = new PrintWriter(bw);
+        out.print(val);
+        out.close();
 
         // Wrap the bytes in a byte array input stream,
         // so that you can read the data as a stream of bytes.
