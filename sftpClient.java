@@ -12,82 +12,79 @@ public class sftpClient
     private static final int retransmissionMaxCount = 5;
     public static void main(String[] args) throws Exception
     {
+        //Making sure proper arguments are setup
         if(args.length != 1) {
             System.out.println("Required arguments: hostname");
             return;
         }
+        //Connection information
         InetAddress address = InetAddress.getByName(args[0]);
         int port = 9093;
-        DatagramSocket client = new DatagramSocket(5555);
-        client.setSoTimeout(retransmissionTimer);
-        while(true)
+        DatagramSocket client = new DatagramSocket(5555);//port 5555
+        client.setSoTimeout(retransmissionTimer); //setting timeout
+
+        while(true)//maintain connection
         {
-            //Sending a message
+            /*
+             * Sending a file to the server
+             */
+            
             //Parse inputfile
             Path filelocation = Paths.get("inputfile.txt");
             byte[] message = Files.readAllBytes(filelocation);
-            String temp = new String(message);
-            System.out.println(temp);
+
             //section bytes off into groups of 512
             byte[][] packets = new byte[(message.length/packetLimit)+1][];
-            System.out.println(message.length/packetLimit);
             for(int i=0; i<(message.length/packetLimit); ++i){
-                System.out.println(i);
                 packets[i] = Arrays.copyOfRange(message, i*packetLimit, (i+1)*packetLimit);
-                System.out.println("Size: " + String.valueOf(packets[i].length));
-                System.out.println("Value: " + String.valueOf(packets[i]));
-                String val = new String(packets[i]);
-                System.out.println("String: " + val);
             }
             if(message.length % packetLimit == 0){
                 packets[packets.length-1] = new byte[0];
             }
             else
             {
-                System.out.println("Here");
-                System.out.println(message.length % packetLimit);
                 packets[packets.length-1] = Arrays.copyOfRange(message, message.length-(message.length % packetLimit), message.length);
-                String val = new String(packets[packets.length-1]);
-                System.out.println("String: " + val);
             }
-            System.out.println(packets[0]);
-            System.out.println(packets[0].length);
 
 
             //Connection and Send
             int seq = 0;
             int ack = 0;
-            int count = 0;
-            System.out.println(packets[0].getClass().getName());
+            int count = 0; //# of timeouts
+            long timeStart = System.currentTimeMillis();
             for(int i=0; i<packets.length; ++i)
             {
                 if(count > 5)
                 {
                     System.out.println("sFTP: file transfer unsuccessful: packet retansmission limit reached");
+                    return;
                 }
-                if(i==packets.length-1)
-                {
-                    System.out.println("last packet size: " + String.valueOf(packets[i].length));
-                }
+                //Create and send data
                 DatagramPacket send = new DatagramPacket(packets[i], packets[i].length, address, port);
-                System.out.println(send.getClass().getName());
                 client.send(send);
 
+                //Create and send SEQ # in 1 byte packet
                 byte[] seqBytes = Integer.toString(seq).getBytes();
                 DatagramPacket seqPacket = new DatagramPacket(seqBytes, 1, address, port);
-                client.send(seqPacket);//System.out.println(packets[0][1]);
+                client.send(seqPacket);
 
+
+                //Receive ACK packet from server
                 DatagramPacket ackPacket = new DatagramPacket(new byte[1], 1);
-                try{
-                    client.receive(ackPacket);
+                try
+                {
+                    client.receive(ackPacket); 
                 }
-                catch(SocketTimeoutException e){
+                catch(SocketTimeoutException e) 
+                { //Took too long to receive ACK
                     System.out.println("Packet lost");
-                    --i;
+                    --i; //move i back to resend packet again
                     ++count;
-                    continue;
+                    continue; //try again
                 }
-                count = 0;
+                count = 0; //reset counter
+
+                //convert ACK packet to Integer
                 byte[] ackBytes = ackPacket.getData();
                 ByteArrayInputStream bais = new ByteArrayInputStream(ackBytes);
                 InputStreamReader isr = new InputStreamReader(bais);
@@ -95,24 +92,20 @@ public class sftpClient
                 String ackString = br.readLine();
                 ack = Integer.parseInt(ackString);
 
-                if(ack == seq)
+                //rdt logic (alternating ACK and SEQ)
+                if(seq == 0)
                 {
-                    if(seq == 0){
-                        seq = 1;
-                    }
-                    else
-                    {
-                        seq = 0;
-                    }
+                    seq = 1;
                 }
                 else
                 {
-                    //dupliate packet???
+                    seq = 0;
                 }
-                System.out.println(seq);
             }
-            //System.out.println("sFTP: file sent successfully to ", "blah", " in ", "blah", " secs");
-            Thread.sleep(10000);
+            long timeEnd = System.currentTimeMillis();
+            System.out.println("sFTP: file sent successfully to " + String.valueOf(args[0]) + " in " + String.valueOf(timeEnd-timeStart) + " secs");
+            client.close(); //close connection
+            break; //finish
         }
     }
 }
