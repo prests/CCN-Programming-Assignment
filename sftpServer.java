@@ -1,14 +1,17 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
 
 /*
  *
  */
 public class sftpServer
 {
-    private static final double LOSS_RATE = 0.2;
-    private static final int AVERAGE_DELAY = 100; //milliseconds
+    private static final double LOSS_RATE = 0.1;
+    private static final int AVERAGE_DELAY = 400; //milliseconds
     public static void main(String[] args) throws Exception
     {
         //Clear the output file at start
@@ -56,8 +59,9 @@ public class sftpServer
             }
 
             printData(request);//Write data of packet to file
-
+            
             Thread.sleep((int) (random.nextDouble()*2*AVERAGE_DELAY)); //Sleep for "delay" of packet
+            
 
             //connection setup for SEQ response
             InetAddress clientHost = request.getAddress();
@@ -75,6 +79,18 @@ public class sftpServer
                 server.close(); //close connection
                 break; //finish
             }
+        }
+        Path f1 = Paths.get("inputfile.txt");
+        Path f2 = Paths.get("outputfile.txt");
+        byte[] inputFile = Files.readAllBytes(f1);
+        byte[] outputFile = Files.readAllBytes(f2);
+        if(Arrays.equals(inputFile, outputFile))
+        {
+            System.out.println("input matches output!");
+        }
+        else
+        {
+            System.out.println("ERROR: transfer failed");
         }
     }
 

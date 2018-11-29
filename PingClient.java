@@ -21,9 +21,9 @@ public class PingClient
         socket.setSoTimeout(1000);
         while(sequenceNum<5){
             DatagramPacket send = new DatagramPacket(new byte[56], 56, address, port);
-            long time1 = System.currentTimeMillis();
             socket.send(send);
             
+            long time1 = System.currentTimeMillis();
             DatagramPacket receive = new DatagramPacket(new byte[56], 56);
             while(true){
                 try{

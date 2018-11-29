@@ -103,7 +103,7 @@ public class sftpClient
                 }
             }
             long timeEnd = System.currentTimeMillis();
-            System.out.println("sFTP: file sent successfully to " + String.valueOf(args[0]) + " in " + String.valueOf(timeEnd-timeStart) + " secs");
+            System.out.println("sFTP: file sent successfully to " + String.valueOf(args[0]) + " in " + String.valueOf((timeEnd-timeStart)/1000) + " secs");
             client.close(); //close connection
             break; //finish
         }
